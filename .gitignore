@@ -1,8 +1,6 @@
 # Ignore the .idea directory
 .idea/
 
-.env
-
 # Binaries for programs and plugins
 *.exe
 *.exe~
