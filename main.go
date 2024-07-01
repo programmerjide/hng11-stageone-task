@@ -17,18 +17,24 @@ type ApiResponse struct {
 	Greeting string `json:"greeting"`
 }
 
-type IpGeolocationResponse struct {
+type GeoapifyResponse struct {
 	IP        string `json:"ip"`
-	Continent string `json:"continent_name"`
-	Country   string `json:"country_name"`
-	State     string `json:"state_prov"`
-	City      string `json:"city"`
-	Latitude  string `json:"latitude"`
-	Longitude string `json:"longitude"`
-	TimeZone  struct {
-		Name   string  `json:"name"`
-		Offset float64 `json:"offset"`
-	} `json:"time_zone"`
+	Continent struct {
+		Name string `json:"name"`
+	} `json:"continent"`
+	Country struct {
+		Name string `json:"name"`
+	} `json:"country"`
+	State struct {
+		Name string `json:"name"`
+	} `json:"state"`
+	City struct {
+		Name string `json:"name"`
+	} `json:"city"`
+	Location struct {
+		Latitude  float64 `json:"latitude"`
+		Longitude float64 `json:"longitude"`
+	} `json:"location"`
 }
 
 type WeatherResponse struct {
@@ -50,9 +56,18 @@ func helloHandler(c *fiber.Ctx) error {
 	}
 
 	apiKey := os.Getenv("IP_GEOLOCATION_API_KEY")
-	apiUrl := fmt.Sprintf("https://api.ipgeolocation.io/ipgeo?apiKey=%s&ip=%s", apiKey, clientIP)
+	apiUrl := fmt.Sprintf("https://api.geoapify.com/v1/ipinfo?&apiKey=%s", apiKey)
 
-	response, err := http.Get(apiUrl)
+	request, err := http.NewRequest("GET", apiUrl, nil)
+	if err != nil {
+		log.Printf("Error creating request: %v", err)
+		return c.Status(fiber.StatusInternalServerError).JSON(ErrorResponse{
+			Error: "Failed to create request",
+		})
+	}
+	request.Header.Set("X-Forwarded-For", clientIP)
+
+	response, err := http.DefaultClient.Do(request)
 	if err != nil {
 		log.Printf("Error fetching location data: %v", err)
 		return c.Status(fiber.StatusInternalServerError).JSON(ErrorResponse{
@@ -69,7 +84,7 @@ func helloHandler(c *fiber.Ctx) error {
 		})
 	}
 
-	var locationData IpGeolocationResponse
+	var locationData GeoapifyResponse
 	err = json.Unmarshal(body, &locationData)
 	if err != nil {
 		log.Printf("Error parsing location data: %v", err)
@@ -78,9 +93,9 @@ func helloHandler(c *fiber.Ctx) error {
 		})
 	}
 
-	location := fmt.Sprintf("%s, %s", locationData.City, locationData.Country)
+	location := fmt.Sprintf("%s, %s", locationData.City.Name, locationData.Country.Name)
 
-	if locationData.City == "" && locationData.Country == "" {
+	if locationData.City.Name == "" && locationData.Country.Name == "" {
 		log.Println("Location data is empty")
 		return c.Status(fiber.StatusInternalServerError).JSON(ErrorResponse{
 			Error: "Location data is empty",
@@ -88,7 +103,7 @@ func helloHandler(c *fiber.Ctx) error {
 	}
 
 	weatherApiKey := os.Getenv("WEATHER_API_KEY")
-	weatherApiUrl := fmt.Sprintf("https://api.openweathermap.org/data/2.5/weather?q=%s&appid=%s&units=metric", locationData.City, weatherApiKey)
+	weatherApiUrl := fmt.Sprintf("https://api.openweathermap.org/data/2.5/weather?q=%s&appid=%s&units=metric", locationData.City.Name, weatherApiKey)
 
 	weatherResponse, err := http.Get(weatherApiUrl)
 	if err != nil {
@@ -130,9 +145,8 @@ func helloHandler(c *fiber.Ctx) error {
 }
 
 func homeHandler(c *fiber.Ctx) error {
-
 	clientIP := getClientIP(c)
-	message := "Welcome to the hng stage one task using Golang! and your ip is: " + clientIP
+	message := "Welcome to the HNG stage one task using Golang! and your IP is: " + clientIP
 
 	// Log the welcome message
 	log.Println(message)
