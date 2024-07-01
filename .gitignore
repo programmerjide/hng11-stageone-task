@@ -26,9 +26,6 @@ vendor/
 .DS_Store
 Thumbs.db
 
-# Environment variables
-.env
-
 # Dependency directories
 node_modules/
 
